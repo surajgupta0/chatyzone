@@ -1,0 +1,178 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Roboto', sans-serif;
+  background-color: #f0f2f5;
+}
+
+#root {
+  display: flex;
+  padding-top: 100px;
+  background-color: white;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+.app-header {
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  box-shadow: rgba(0, 0, 0, 0.1) 0px 1px 2px 0px;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  background-color: #fff;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 2rem;
+  color: #000000;
+}
+
+.upload-section {
+  display: flex;
+  align-items: center;
+}
+
+.file-input {
+  margin-right: 10px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.upload-button {
+  padding: 10px 20px;
+  color: #4d4d4e;
+  border: 1px solid #4d4d4e;
+  background-color: transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+
+}
+
+.upload-button:hover {
+  background-color: #4d4d4e;
+  color: #fff ;
+}
+
+.upload-button:disabled, .send-button:disabled i{
+  color: #888888;
+  cursor: not-allowed;
+}
+
+.chat-main {
+  width: 100%;
+  display: flex;
+}
+
+.chat-container {
+  width: 100%;
+  background-color: transparent;
+}
+
+.chat-section {
+  flex: 1;
+  padding: 20px;
+}
+
+.chat-message {
+  margin: 10px 0;
+  padding: 10px;
+  border-radius: 5px;
+  transition: background-color 0.3s;
+  margin-bottom: 0.5rem;
+}
+
+.app-container{
+  width: 80%;
+  margin: 0 auto;
+}
+
+.question-section {
+  position: fixed;
+  bottom: 30px;
+  left:10%;
+  width: 80%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+  box-shadow: rgba(0, 0, 0, 0.02) 0px 1px 3px 0px, rgba(27, 31, 35, 0.15) 0px 0px 0px 1px;
+}
+
+.question-input {
+  background-color: transparent;
+  flex: 1;
+  padding: 10px;
+  margin-right: 10px;
+  border:none;
+  outline: none;
+  border-radius: 5px;
+  
+}
+
+.send-button{
+  color: #000;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  background-color: transparent;
+}
+
+.send-button i:hover {
+  color: #888888;
+}
+
+.input-section {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.file-input {
+  flex: 1;
+  margin-right: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}

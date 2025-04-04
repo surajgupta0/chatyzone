@@ -1,0 +1,6 @@
+.docker-compose.yml
+frontend/node_modules
+backend/.venv
+.frontend.env
+.backend.env
+*.pyc

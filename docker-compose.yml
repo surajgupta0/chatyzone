@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  backend:
+    container_name: backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: portfolio-backend:v0.0.1
+    ports:
+      - "8000:8000"
+    # volumes:
+      # - ./backend:/var/www/html/portfolio/backend
+    env_file:
+      - backend/.env
+
+  # frontend:
+  #   container_name: frontend
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   image: portfolio-frontend:latest
+  #   ports:
+  #     - "5173:5173"
+  #   depends_on:
+  #     - backend
+  #   volumes:
+  #     - ./frontend:/frontend
+  #   env_file:
+  #     - .frontend.env
