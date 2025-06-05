@@ -1,13 +1,20 @@
-from .base import AUTHPARAMS
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
-class chat(AUTHPARAMS):
+class chat(BaseModel):
+    user_id           : Optional[str] = None
+    reference_id       : Optional[str] = None
+    reference_type     : Optional[str] = None
+    message           : Optional[str] = None
+    
+class GetChat(BaseModel):
     chat_id             : Optional[str] = None
     user_id             : Optional[str] = None
-    query               : str = ""
-    file_id             : Optional[str] = None
-    filde_path          : Optional[str] = None
-    file_name           : Optional[str] = None
+    reference_id         : Optional[str] = None
+    reference_type       : Optional[str] = None
     
-    
+class GetChatHistory(BaseModel):
+    user_id             : Optional[str] = None
+    chat_id             : Optional[str] = None
+    reference_id        : Optional[str] = None
+    reference_type      : Optional[str] = None

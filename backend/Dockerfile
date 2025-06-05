@@ -1,45 +1,25 @@
-# ------------------------------
-# Stage 1: Install dependencies
-# ------------------------------
-FROM python:3.12 AS base
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends libmagic1 && rm -rf /var/lib/apt/lists/*
+RUN ln -sf /usr/share/zoneinfo/Asia/Kolkata /etc/localtime
 
 # Set the working directory
-WORKDIR /var/www/html/portfolio/backend
-
-# Set environment variables for better performance
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    POETRY_VIRTUALENVS_CREATE=false
+WORKDIR /var/www/html/chatifizer/backend
 
 # Install Poetry
-RUN pip install poetry
+RUN pip install --no-cache-dir poetry beanie
 
 # Copy dependency files first (to leverage Docker caching)
 COPY poetry.lock pyproject.toml app.py ./
 
 # Install dependencies **without virtualenv**
-RUN poetry install --no-root --no-dev
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-root --only main
 
-# ------------------------------
-# Stage 2: Build final production image
-# ------------------------------
-FROM python:3.12-slim AS production
-
-# Set the working directory
-WORKDIR /var/www/html/portfolio/backend
-
-# Copy only necessary files from the base stage
-COPY --from=base /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=base /var/www/html/portfolio/backend /var/www/html/portfolio/backend
-
-# Create a non-root user for security
-RUN groupadd -g 1001 appgroup && useradd -u 1001 -g appgroup appuser
-USER appuser
-
-# Copy application source code
-COPY src/ src/
+COPY src/ ./src/
 
 # Expose the FastAPI port
 EXPOSE 8000
 
+# CMD ["echo", "hello"]
 CMD ["python", "app.py"]

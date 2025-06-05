@@ -1,178 +1,294 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, status, Form
 from fastapi.responses import JSONResponse
-from typing import Optional
 from ..schema import file
 from ..utils import Query, fnMakeId
 from datetime import datetime
 import os
 import shutil
-from ..core import variables
-from typing import List
-from pathlib import Path
-from pdf2image import convert_from_path
     
 router = APIRouter(prefix="/file", tags=["Files"])
 
 ALLOWED_EXTENSIONS = {"pdf", "docx", "txt", "pptx"}
 
-def get_user_directory(user_id: str, folder_path:Optional[str]=""):
-    user_folder = os.path.join(variables.BASE_UPLOAD_DIR, user_id)
-    
-    if folder_path:
-        user_folder = os.path.join(user_folder, folder_path)
-        
-    os.makedirs(user_folder, exist_ok=True)
-    return user_folder
-
-def get_file_extension(filename: str):
-    return filename.split(".")[-1].lower()
-
-# Upload Files
-@router.post("/upload", status_code = 202)
+@router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
 async def upload_file(
-    schema: file.UploadFile, 
-    file: UploadFile = File(...)
+    user_id       : str = Form(...),
+    folder_id     : str = Form(...),
+    file          : UploadFile = File(...)
 ):
     try:
-        ext = get_file_extension(file.filename)
+        # Extract file extension
+        ext = file.filename.split(".")[-1].lower()
+
         if ext not in ALLOWED_EXTENSIONS:
             return JSONResponse(
                 status_code   = status.HTTP_400_BAD_REQUEST,
-                content       = {
-                    "status"    : 'false',
-                    "message"   : "Invalid file type. Allowed types are: PDF, DOCX, TXT, PPTX",
+                content       ={
+                    "status"  : False,
+                    "message" : f"Invalid file type. Allowed types are: {', '.join(ALLOWED_EXTENSIONS).upper()}"
                 }
             )
-        
+
+        # Check if user exists
+        user = await Query(
+            collection_name   = 'coll_users',
+            operation         = 'get_one',
+            query             = {
+                "user_id"       : user_id
+            }
+        )
+
+        if isinstance(user, JSONResponse):
+            return user
+
+        if not user:
+            return JSONResponse(
+                status_code   = status.HTTP_404_NOT_FOUND,
+                content       = {
+                    "status"  : False,
+                    "message" : "User not found"
+                }
+            )
+
+        # Generate a unique file ID
         file_id = await fnMakeId(
             collection_name   = 'coll_files',
             prefix            = 'FILE',
             sort              = 'file_id'
         )
-        
+
         if isinstance(file_id, JSONResponse):
             return file_id
-        
-        user_dir = get_user_directory(schema.user_id, schema.folder_path)
-        
-        file_path = os.path.join(user_dir, file.filename)
-    
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
-        arrFiles = await Query(
-            collection_name   = 'coll_files',
-            operation         = 'find',
-            filter            = {
-                "user_id"       : schema.user_id,
-                "file_id"       : file_id,
-                "file_name"     : file.filename,
-                "file_ext"      : ext,
-                "created_at"    : datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "file_size"     : os.path.getsize(file_path),
-                "file_path"     : file_path,
+
+        arrUserFolder  = await Query(
+            collection_name   = 'coll_folders',
+            operation         = 'get_one',
+            query             = {
+                "created_by"    : user_id,
+                "folder_id"     : folder_id
             }
         )
+
+        if isinstance(arrUserFolder, JSONResponse):
+            return arrUserFolder
         
-        if isinstance(arrFiles, JSONResponse):
-            return arrFiles
+        if not arrUserFolder:
+            return JSONResponse(
+                status_code   = status.HTTP_404_NOT_FOUND,
+                content       = {
+                    "status"  : False,
+                    "message" : "Folder not found"
+                }
+            )
         
+        folder_path   = arrUserFolder.get('folder_path', '')
+
+        os.makedirs(folder_path, exist_ok = True)
+        file_path     = os.path.join(folder_path, file.filename)
+
+        # Save the file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Store file metadata in database
+        file_metadata = {
+            "created_by"        : user_id,
+            "file_id"           : file_id,
+            "folder_id"         : folder_id,
+            "file_name"         : file.filename,
+            "file_ext"          : ext,
+            "created_at"        : datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "file_size"         : os.path.getsize(file_path),
+            "file_path"         : file_path,
+        }
+
+        result = await Query(
+            collection_name   = 'coll_files',
+            operation         = 'insert_one',
+            data              = file_metadata
+        )
+
+        if isinstance(result, JSONResponse):
+            return result
+
         return JSONResponse(
-            status_code   = status.HTTP_201_CREATED,
-            content       = {
-                "status"    : 'true',
-                "message"   : "File uploaded successfully",
-                "data"      : {
+            status_code         = status.HTTP_201_CREATED,
+            content             = {
+                "status"        : True,
+                "message"       : "File uploaded successfully",
+                "data": {
                     "file_id"   : file_id,
                     "file_path" : file_path,
                 }
             }
         )
-        
+
     except Exception as e:
         return JSONResponse(
-            status_code   = status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content       = {
-                "status"        : 'false',
+            status_code         = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content             = {
+                "status"        : False,
                 "message"       : "Internal server error",
                 "error"         : str(e),
-                "error_line"    : str(e.__traceback__.tb_lineno),
+                "error_line"    : str(e.__traceback__.tb_lineno)
             }
         )
         
-@router.post("/get-file", status_code = 200)
-async def get_file(
-    schema: file.GetFile
-):
-    try:
-        filter = {"user_id"   : schema.user_id,}
-        
-        if schema.file_id:
-            filter["file_id"] = schema.file_id
-        if schema.file_name:
-            filter["file_name"] = schema.file_name
-        if schema.file_ext:
-            filter["file_ext"] = schema.file_ext
-            
-        file = await Query(
-            collection_name   = 'coll_files',
-            operation         = 'find_one',
-            filter            = filter
-        )
-        
-        if isinstance(file, JSONResponse):
-            return file
-        
-        return JSONResponse(
-            status_code   = status.HTTP_200_OK,
-            content       = {
-                "status"    : 'true',
-                "message"   : "File retrieved successfully",
-                "data"      : file,
-            }
-        )
-        
-    except Exception as e:
-        return JSONResponse(
-            status_code   = status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content       = {
-                "status"        : 'false',
-                "message"       : "Internal server error",
-                "error"         : str(e),
-                "error_line"    : str(e.__traceback__.tb_lineno),
-            }
-        )
-        
-@router.post("/delete-file", status_code = 200)
+@router.post("/delete", status_code = 200)
 async def delete_file(
     schema: file.GetFile
 ):
     try:
-        filter = {"user_id"   : schema.user_id,}
+        query = {
+            "created_by"    : schema.user_id,
+            "file_id"       : schema.file_id
+        }
         
-        if schema.file_id:
-            filter["file_id"] = schema.file_id
-        if schema.file_name:
-            filter["file_name"] = schema.file_name
-        if schema.file_ext:
-            filter["file_ext"] = schema.file_ext
-            
-        file = await Query(
+        get_file = await Query(
             collection_name   = 'coll_files',
-            operation         = 'delete_multiple',
-            filter            = filter
+            operation         = 'get_one',
+            query             = query
         )
         
-        if isinstance(file, JSONResponse):
-            return file
+        if isinstance(get_file, JSONResponse):
+            return get_file
         
-        os.remove(file['file_path'])
+        if not get_file:
+            return JSONResponse(
+                status_code   = status.HTTP_404_NOT_FOUND,
+                content       = {
+                    "status"  : False,
+                    "message" : "File not found"
+                }
+            )
+            
+        del_file = await Query(
+            collection_name   = 'coll_files',
+            operation         = 'delete_one',
+            query             = query
+        )
+        
+        if isinstance(del_file, JSONResponse):
+            return del_file
+        
+        os.remove(get_file.get('file_path'))
         
         return JSONResponse(
             status_code   = status.HTTP_200_OK,
             content       = {
                 "status"    : 'true',
                 "message"   : "File deleted successfully",
+            }
+        )
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code   = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content       = {
+                "status"        : 'false',
+                "message"       : "Internal server error",
+                "error"         : str(e),
+                "error_line"    : str(e.__traceback__.tb_lineno),
+            }
+        )
+
+@router.post("/rename", status_code = 200)
+async def rename_file(
+    schema: file.RenameFile
+):
+    try:
+        
+        get_file = await Query(
+            collection_name   = 'coll_files',
+            operation         = 'get_one',
+            query             = {
+                "created_by"    : schema.user_id,
+                "file_id"       : schema.file_id
+            }
+        )
+        if isinstance(get_file, JSONResponse):
+            return get_file
+        
+        if not get_file:
+            return JSONResponse(
+                status_code   = status.HTTP_404_NOT_FOUND,
+                content       = {
+                    "status"  : False,
+                    "message" : "File not found"
+                }
+            )
+            
+        query = {
+            "created_by"    : schema.user_id,
+            "file_id"       : schema.file_id
+        }
+            
+        update_file = await Query(
+            collection_name   = 'coll_files',
+            operation         = 'update_one',
+            query             = query,
+            data              = {
+                "file_name" : schema.new_file_name,
+                "file_ext"  : schema.new_file_name.split(".")[-1].lower(),
+                "file_path" : os.path.join(os.path.dirname(get_file.get('file_path')), schema.new_file_name),
+                "updated_at" : datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        )
+        
+        if isinstance(update_file, JSONResponse):
+            return update_file
+        
+        # Rename the file on the filesystem
+        old_file_path   = get_file.get('file_path', '')
+        new_file_path   = os.path.join(os.path.dirname(old_file_path), schema.new_file_name)
+        
+        os.rename(old_file_path, new_file_path)
+        
+        return JSONResponse(
+            status_code   = status.HTTP_200_OK,
+            content       = {
+                "status"    : 'true',
+                "message"   : "File renamed successfully",
+                "data"      : update_file,
+            }
+        )
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code   = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content       = {
+                "status"        : 'false',
+                "message"       : "Internal server error",
+                "error"         : str(e),
+                "error_line"    : str(e.__traceback__.tb_lineno),
+            }
+        )
+@router.post("/get", status_code = 200)
+async def get_file(
+    schema: file.GetFile
+):
+    try:
+        filter = {
+            "created_by"    : schema.user_id,
+        }
+        
+        if schema.file_id:
+            filter["file_id"] = schema.file_id
+            
+        file = await Query(
+            collection_name   = 'coll_files',
+            operation         = 'get_many',
+            query             = filter
+        )
+        
+        if isinstance(file, JSONResponse):
+            return file
+        
+        return JSONResponse(
+            status_code   = status.HTTP_200_OK,
+            content       = {
+                "status"    : 'true',
+                "message"   : "File fetched successfully",
                 "data"      : file,
             }
         )
@@ -187,7 +303,7 @@ async def delete_file(
                 "error_line"    : str(e.__traceback__.tb_lineno),
             }
         )
-        
+ 
 # @router.post("/pdf/convert", status_code = 200)
 # async def convert_to_pdf(file: UploadFile = File(...)):
 #     file_ext = file.filename.split(".")[-1].lower()

@@ -3,15 +3,12 @@ from typing import Optional, List, Dict
 
 class CHAT(Document):
     chat_id         : Optional[str] = ""
-    chat_type       : Optional[str] = ""
-    file_id         : Optional[str] = ""
-    file_path       : Optional[str] = ""
-    file_name       : Optional[str] = ""
-    file_type       : Optional[str] = ""
+    reference_id     : Optional[str] = ""
+    reference_type   : Optional[str] = ""
     chat_history    : Optional[List[Dict]] = []
-    created_at      : Optional[Dict] = ""
-    updated_at      : Optional[Dict] = ""
-    created_by      : Optional[Dict] = ""
+    created_at      : Optional[str] = ""
+    updated_at      : Optional[str] = ""
+    created_by      : Optional[str] = ""
     
     class Settings:
         collection = "coll_chat"

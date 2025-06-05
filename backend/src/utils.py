@@ -34,7 +34,7 @@ async def Query(
             return JSONResponse(
                 status_code   = 400,
                 content       = {
-                    "status"  : 400,
+                    "status"  : "false",
                     "message" : "Invalid operation type",
                     "error"   : "Invalid operation type"
                 }
@@ -79,12 +79,12 @@ async def fnMakeId(
     
     except Exception as e:
         return JSONResponse(
-            status_code=500, 
-            content={
-                "status"    : 500,
-                "message"   : "MongoDB connection error",
-                "error"     : str(e),
-                "error_line" : str(e.__traceback__.tb_lineno),
+            status_code         = 500,
+            content             = {
+                "status"        : "false",
+                "message"       : "MongoDB connection error",
+                "error"         : str(e),
+                "error_line"    : str(e.__traceback__.tb_lineno),
             }
         )
             

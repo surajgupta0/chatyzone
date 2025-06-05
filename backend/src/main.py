@@ -4,8 +4,10 @@ from .core.database import MongoManager
 from .routes import auth, file, chat, summarize, folder, settings as user_settings
 from fastapi.middleware.cors import CORSMiddleware
 from .middleware.LoggingMiddleware import LoggingMiddleware
+from fastapi.staticfiles import StaticFiles
 from .middleware.security import JWTBearer
 from contextlib import asynccontextmanager
+from .core.variables import BASE_UPLOAD_DIR
 
 #Lifespan manager for FastAPI
 @asynccontextmanager
@@ -39,7 +41,8 @@ app.middleware(LoggingMiddleware)
 # Route handlers
 app.include_router(auth.router)
 app.include_router(file.router)
-# app.include_router(chat.router)
-# app.include_router(summarize.router)
+app.include_router(chat.router)# app.include_router(summarize.router)
 app.include_router(folder.router)
 # app.include_router(user_settings.router)
+
+# app.mount("/static", StaticFiles(directory=BASE_UPLOAD_DIR), name="static")

@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
-from ..schema import user
+from ..schema import user, folder
+from .folder import create_folder
 from ..utils import Query, fnMakeId
 from ..core.security import hash_password, verify_password, create_access_token, decode_token, oauth2_scheme
 from datetime import datetime
+import json
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -15,7 +17,10 @@ async def register_user(schema: user.AdUpdateUser):
         if schema.password != schema.confirm_password:
             return JSONResponse(
                 status_code   = status.HTTP_400_BAD_REQUEST,
-                content       = {"message": "Passwords do not match"}
+                content       = {
+                    "status"    : 'false',
+                    "message"   : "Passwords do not match",
+                    "error"     : "Passwords do not match"}
             )
         
         user_id = schema.user_id or await fnMakeId(
@@ -111,6 +116,24 @@ async def register_user(schema: user.AdUpdateUser):
         if isinstance(user, JSONResponse):
             return user
         
+        folder_created = await create_folder(folder.CreateFolder(
+            user_id         = user_id,
+            folder_name     = user_id,
+        ))
+        
+        if isinstance(folder_created, JSONResponse):
+            res = json.loads(folder_created.body.decode("utf-8"))
+
+            if res.get('status') != 'true':
+                return JSONResponse(
+                    status_code   = status.HTTP_400_BAD_REQUEST,
+                    content       = {
+                        "status"  : 'false',
+                        "message" : "Folder creation failed",
+                        "error"   : res.get('error', 'Unknown error')
+                    }
+                )
+                 
         return JSONResponse(
             status_code   = status.HTTP_201_CREATED,
             content       = {

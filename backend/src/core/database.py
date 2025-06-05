@@ -35,7 +35,7 @@ class MongoManager:
             return JSONResponse(
                 status_code         = 500,
                 content             = {
-                    "status"        : 500,
+                    "status"        : "false",
                     "error"         : str(e),
                     "message"       : "MongoDB to get database error",
                     "error_line"    : str(e.__traceback__.tb_lineno),
@@ -54,7 +54,7 @@ class MongoManager:
                 return JSONResponse(
                     status_code   = 404,
                     content       = {
-                        "status"  : 404,
+                        "status"  : "false",
                         "error"   : "Model not found",
                         "message" : "Model not found"
                     }
@@ -114,13 +114,17 @@ class MongoManager:
                 }
             )
 
+    def clean_item(self, item):
+        item.pop("id", None)
+        return item
+    
     async def find_one(self, model_name: str, query: dict, projection: Optional[Dict] = None, sort: Optional[List] = None):
         try:
             model = await self.get_model(model_name)
             if isinstance(model, JSONResponse):
                 return model
             result = await model.find(query, sort=sort).limit(1).to_list()
-            return result[0].model_dump() if result else {}
+            return self.clean_item(result[0].model_dump()) if result else {}
         
         except Exception as e:
             return JSONResponse(
@@ -140,7 +144,7 @@ class MongoManager:
             if isinstance(model, JSONResponse):
                 return model
             result = await model.find(query, sort=sort).to_list()
-            return [item.model_dump() for item in result] if result else []
+            return [self.clean_item(item.model_dump()) for item in result] if result else []
         
         except Exception as e:
             return JSONResponse(
@@ -201,7 +205,7 @@ class MongoManager:
             model = await self.get_model(model_name)
             if isinstance(model, JSONResponse):
                 return model
-            result = await model.delete_one(query)
+            result = await model.find(query).delete()
             return result
         
         except Exception as e:
@@ -221,7 +225,7 @@ class MongoManager:
             model = await self.get_model(model_name)
             if isinstance(model, JSONResponse):
                 return model
-            result = await model.delete_many(query)
+            result = await model.find(query).delete_many()
             return result
         
         except Exception as e:
